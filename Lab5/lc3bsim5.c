@@ -1005,7 +1005,7 @@ void latch_datapath_values() {
    }
 
    /* STW, STB*/
-   if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 1){
+   if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 1 && GetMIO_EN(CURRENT_LATCHES.MICROINSTRUCTION)){
         if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 1){
             // STW
             MEMORY[CURRENT_LATCHES.MAR >> 1][0] = CURRENT_LATCHES.MDR & 0x00FF;
@@ -1095,14 +1095,15 @@ void latch_datapath_values() {
 
 //    if(GetMDR_setM(CURRENT_LATCHES.MICROINSTRUCTION)) NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0002);
    if(GetMDR_setR(CURRENT_LATCHES.MICROINSTRUCTION)) {
-    if((CURRENT_LATCHES.MDR & 0x0008) == 0x0000){
+    // printf("Set Reference!");
+    if((CURRENT_LATCHES.MDR & 0x0008) == 0x0000 && ((Low16bits(CURRENT_LATCHES.PSR) >> 15) == 0x0001) && (((CURRENT_LATCHES.IR & 0xF000) >> 12) != 0b001111)){
         // Check protection exception
-        if(((Low16bits(CURRENT_LATCHES.PSR) >> 15) == 0x0001) && ((CURRENT_LATCHES.IR & 0xF000) >> 12) != 0b001111){
-            NEXT_LATCHES.STATE_NUMBER = 0x000A;
-            memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
-            NEXT_LATCHES.EXCV = 0x0004;
-            NEXT_LATCHES.EXC = 1;
-        }
+        // Access protected page && not in supervisor mode && not TRAP
+        NEXT_LATCHES.STATE_NUMBER = 0x000A;
+        memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
+        NEXT_LATCHES.EXCV = 0x0004;
+        NEXT_LATCHES.EXC = 1;
+        
     }
     else if((CURRENT_LATCHES.MDR & 0x0004) == 0x0000){
         // Check page fault
@@ -1112,9 +1113,9 @@ void latch_datapath_values() {
         NEXT_LATCHES.EXC = 1;
     }
     else{
+        // printf("Set Reference!");
         if(GetMDR_setM(CURRENT_LATCHES.MICROINSTRUCTION)) NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0003);
         else NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0001);
     }
    }
-
 }
