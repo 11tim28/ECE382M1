@@ -11,12 +11,30 @@ Loop	LDB R2, R0, #0												; S18(152)	; S18(282) -> S18(323)[INT] 	; S18(229
 		ADD R1, R1, #-1												; S18(237)	; S18(22885)
 		BRp Loop													; S18(259)	; S18(22907)
 
-		STW R3, R0, #0												; S18(25270)
-		JMP R3														; S18(25310)
+		STW R3, R0, #0												; S18(25269)
+
+		; ---------------------------------------------------S18(25310)---------------------------------------------------
+
+		; Test protection exception
+		; JMP R3														; S18(25310)
+
+		; Test page fault
+		; LEA R0, PF
+		; LDW R0, R0, #0
+		; LDW R1, R0, #0
+
+		; Test unaligned access exception
+		; ADD R0, R0, #3
+		; STW R1, R0, #0
+
+		; Test unknown opcode
+		; .FILL xA000
+
 
 		HALT
 
 Loc		.FILL xC000
+PF		.FILL x5000
 		.END
 
 																	; END(25442)
