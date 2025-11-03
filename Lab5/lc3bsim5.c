@@ -910,21 +910,29 @@ void latch_datapath_values() {
    }
 
    /* NZP */
-   if(GetLD_CC(CURRENT_LATCHES.MICROINSTRUCTION)){
-        if(BUS == 0){
-            NEXT_LATCHES.N = 0;
-            NEXT_LATCHES.Z = 1;
-            NEXT_LATCHES.P = 0;
-        }
-        else if(BUS & 0x8000){
-            NEXT_LATCHES.N = 1;
-            NEXT_LATCHES.Z = 0;
-            NEXT_LATCHES.P = 0;
+   if(GetLD_CC(CURRENT_LATCHES.MICROINSTRUCTION) || GetLD_PSR(CURRENT_LATCHES.MICROINSTRUCTION)){
+        if(GetLD_PSR(CURRENT_LATCHES.MICROINSTRUCTION) && GetPSR_PRMD(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
+            // state 42
+            NEXT_LATCHES.N = (BUS & 0x0004) >> 2;
+            NEXT_LATCHES.Z = (BUS & 0x0002) >> 1;
+            NEXT_LATCHES.P = (BUS & 0x0001);
         }
         else{
-            NEXT_LATCHES.N = 0;
-            NEXT_LATCHES.Z = 0;
-            NEXT_LATCHES.P = 1;
+            if(BUS == 0){
+                NEXT_LATCHES.N = 0;
+                NEXT_LATCHES.Z = 1;
+                NEXT_LATCHES.P = 0;
+            }
+            else if(BUS & 0x8000){
+                NEXT_LATCHES.N = 1;
+                NEXT_LATCHES.Z = 0;
+                NEXT_LATCHES.P = 0;
+            }
+            else{
+                NEXT_LATCHES.N = 0;
+                NEXT_LATCHES.Z = 0;
+                NEXT_LATCHES.P = 1;
+            }
         }
    }
 
