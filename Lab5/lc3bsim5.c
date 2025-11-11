@@ -719,7 +719,7 @@ void eval_micro_sequencer() {
    * Evaluate the address of the next state according to the 
    * micro sequencer logic. Latch the next microinstruction.
    */
-    printf("Current State: %d\n", CURRENT_LATCHES.STATE_NUMBER);
+    // printf("Current State: %d\n", CURRENT_LATCHES.STATE_NUMBER);
     if(CYCLE_COUNT == 299) interrupt();
 
 
@@ -750,6 +750,7 @@ void eval_micro_sequencer() {
         NEXT_LATCHES.STATE_NUMBER |= (~(cond2 & 0b1) & ~(cond1 & 0b1) & (cond0 & 0b1) & CURRENT_LATCHES.READY) << 1;
         NEXT_LATCHES.STATE_NUMBER |= (~(cond2 & 0b1) & (cond1 & 0b1) & (cond0 & 0b1) & ((CURRENT_LATCHES.IR >> 11) & 0x0001));
     }
+    // printf("Next State in micro sequencer: %d\n", NEXT_LATCHES.STATE_NUMBER);
     // Refer to control store to latch next microinstruction
     memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
     return;
@@ -894,46 +895,42 @@ void latch_datapath_values() {
         NEXT_LATCHES.IR = BUS;
    }
 
-   /* PC NEXT */
-   if(GetLD_PC(CURRENT_LATCHES.MICROINSTRUCTION)){
-        if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 0) NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
-        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 1) NEXT_LATCHES.PC = BUS;
-        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 2) NEXT_LATCHES.PC = o_addr_adder;
-        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 3) NEXT_LATCHES.PC = CURRENT_LATCHES.PC - 2;
-        if(NEXT_LATCHES.PC & 0x0001){
-            // Check unaligned exception
-            NEXT_LATCHES.STATE_NUMBER = 0x000A;
-            memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
-            NEXT_LATCHES.EXCV = 0x0003;
-            NEXT_LATCHES.EXC = 1;
-        }
-   }
+//    /* PC NEXT */
+//    if(GetLD_PC(CURRENT_LATCHES.MICROINSTRUCTION)){
+//         if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 0) NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+//         else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 1) NEXT_LATCHES.PC = BUS;
+//         else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 2) NEXT_LATCHES.PC = o_addr_adder;
+//         else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 3) NEXT_LATCHES.PC = CURRENT_LATCHES.PC - 2;
+//         if(NEXT_LATCHES.PC & 0x0001){
+//             // Check unaligned exception
+//             NEXT_LATCHES.STATE_NUMBER = 0x000A;
+//             memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
+//             NEXT_LATCHES.EXCV = 0x0003;
+//             NEXT_LATCHES.EXC = 1;
+//         }
+//    }
 
    /* NZP */
-   if(GetLD_CC(CURRENT_LATCHES.MICROINSTRUCTION) || GetLD_PSR(CURRENT_LATCHES.MICROINSTRUCTION)){
-        if(GetLD_PSR(CURRENT_LATCHES.MICROINSTRUCTION) && GetPSR_PRMD(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
-            // state 42
-            NEXT_LATCHES.N = (BUS & 0x0004) >> 2;
-            NEXT_LATCHES.Z = (BUS & 0x0002) >> 1;
-            NEXT_LATCHES.P = (BUS & 0x0001);
+   if(GetLD_CC(CURRENT_LATCHES.MICROINSTRUCTION)){
+        if(BUS == 0){
+            NEXT_LATCHES.N = 0;
+            NEXT_LATCHES.Z = 1;
+            NEXT_LATCHES.P = 0;
+            NEXT_LATCHES.PSR = ((CURRENT_LATCHES.PSR & 0xFFF8) | 0x0002);
+        }
+        else if(BUS & 0x8000){
+            NEXT_LATCHES.N = 1;
+            NEXT_LATCHES.Z = 0;
+            NEXT_LATCHES.P = 0;
+            NEXT_LATCHES.PSR = ((CURRENT_LATCHES.PSR & 0xFFF8) | 0x0004);
         }
         else{
-            if(BUS == 0){
-                NEXT_LATCHES.N = 0;
-                NEXT_LATCHES.Z = 1;
-                NEXT_LATCHES.P = 0;
-            }
-            else if(BUS & 0x8000){
-                NEXT_LATCHES.N = 1;
-                NEXT_LATCHES.Z = 0;
-                NEXT_LATCHES.P = 0;
-            }
-            else{
-                NEXT_LATCHES.N = 0;
-                NEXT_LATCHES.Z = 0;
-                NEXT_LATCHES.P = 1;
-            }
+            NEXT_LATCHES.N = 0;
+            NEXT_LATCHES.Z = 0;
+            NEXT_LATCHES.P = 1;
+            NEXT_LATCHES.PSR = ((CURRENT_LATCHES.PSR & 0xFFF8) | 0x0001);
         }
+        
    }
 
    /* BEN */
@@ -982,7 +979,7 @@ void latch_datapath_values() {
 //    }
 
    if(GetLD_MAR(CURRENT_LATCHES.MICROINSTRUCTION) == 1) NEXT_LATCHES.MAR = BUS;
-    else if(GetLD_MAR(CURRENT_LATCHES.MICROINSTRUCTION) == 2) NEXT_LATCHES.MAR = CURRENT_LATCHES.PTBR + ((CURRENT_LATCHES.VA & 0xFE00) >> 8);
+    else if(GetLD_MAR(CURRENT_LATCHES.MICROINSTRUCTION) == 2) NEXT_LATCHES.MAR = CURRENT_LATCHES.PTBR + ((((CURRENT_LATCHES.VA & 0xFE00) >> 9)) << 1);
     else if(GetLD_MAR(CURRENT_LATCHES.MICROINSTRUCTION) == 3) NEXT_LATCHES.MAR = (CURRENT_LATCHES.MDR & 0x3E00) | (CURRENT_LATCHES.VA & 0x01FF);
 
     /* MDR_TMP */
@@ -1047,7 +1044,13 @@ void latch_datapath_values() {
    // PSR
    if(GetLD_PSR(CURRENT_LATCHES.MICROINSTRUCTION)){
     if(GetPSR_PRMD(CURRENT_LATCHES.MICROINSTRUCTION)) NEXT_LATCHES.PSR = Low16bits(CURRENT_LATCHES.PSR) & 0x7FFF; // set PSR[15] = 0 (State 56)
-    else NEXT_LATCHES.PSR = BUS; // State 47
+    else {
+        // state 42
+        NEXT_LATCHES.PSR = BUS; 
+        NEXT_LATCHES.N = (BUS & 0x0004) >> 2;
+        NEXT_LATCHES.Z = (BUS & 0x0002) >> 1;
+        NEXT_LATCHES.P = (BUS & 0x0001);
+    }
    }
 
    // VECT
@@ -1087,24 +1090,11 @@ void latch_datapath_values() {
     }
    }
 
-   if(GetLD_VA(CURRENT_LATCHES.MICROINSTRUCTION)){
-        if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 1 && (BUS & 0x0001)){
-            // Check unaligned exception
-            NEXT_LATCHES.STATE_NUMBER = 0x000A;
-            memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
-            NEXT_LATCHES.EXCV = 0x0003;
-            NEXT_LATCHES.EXC = 1;
-        }
-        else{
-            NEXT_LATCHES.VA = BUS;
-        }
-   }
-
 
 //    if(GetMDR_setM(CURRENT_LATCHES.MICROINSTRUCTION)) NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0002);
    if(GetMDR_setR(CURRENT_LATCHES.MICROINSTRUCTION)) {
     // printf("Set Reference!");
-    if((CURRENT_LATCHES.MDR & 0x0008) == 0x0000 && ((Low16bits(CURRENT_LATCHES.PSR) >> 15) == 0x0001) && (((CURRENT_LATCHES.IR & 0xF000) >> 12) != 0b001111)){
+    if(((CURRENT_LATCHES.MDR & 0x0008) >> 3) == 0x0000 && ((Low16bits(CURRENT_LATCHES.PSR) >> 15) == 0x0001) && (((CURRENT_LATCHES.IR & 0xF000) >> 12) != 0b001111)){
         // Check protection exception
         // Access protected page && not in supervisor mode && not TRAP
         NEXT_LATCHES.STATE_NUMBER = 0x000A;
@@ -1113,7 +1103,7 @@ void latch_datapath_values() {
         NEXT_LATCHES.EXC = 1;
         
     }
-    else if((CURRENT_LATCHES.MDR & 0x0004) == 0x0000){
+    else if(((CURRENT_LATCHES.MDR & 0x0004) >> 2) == 0x0000){
         // Check page fault
         NEXT_LATCHES.STATE_NUMBER = 0x000A;
         memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
@@ -1125,5 +1115,33 @@ void latch_datapath_values() {
         if(GetMDR_setM(CURRENT_LATCHES.MICROINSTRUCTION)) NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0003);
         else NEXT_LATCHES.MDR = CURRENT_LATCHES.MDR | (0x0001);
     }
+   }
+
+    /* PC NEXT */
+   if(GetLD_PC(CURRENT_LATCHES.MICROINSTRUCTION)){
+        if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 0) NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 1) NEXT_LATCHES.PC = BUS;
+        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 2) NEXT_LATCHES.PC = o_addr_adder;
+        else if(GetPCMUX(CURRENT_LATCHES.MICROINSTRUCTION) == 3) NEXT_LATCHES.PC = CURRENT_LATCHES.PC - 2;
+        if(NEXT_LATCHES.PC & 0x0001){
+            // Check unaligned exception
+            NEXT_LATCHES.STATE_NUMBER = 0x000A;
+            memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
+            NEXT_LATCHES.EXCV = 0x0003;
+            NEXT_LATCHES.EXC = 1;
+        }
+   }
+
+   if(GetLD_VA(CURRENT_LATCHES.MICROINSTRUCTION)){
+        if((GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 1) && (BUS & 0x0001)){
+            // Check unaligned exception
+            NEXT_LATCHES.STATE_NUMBER = 0x000A;
+            memcpy(NEXT_LATCHES.MICROINSTRUCTION, CONTROL_STORE[NEXT_LATCHES.STATE_NUMBER], sizeof(int)*CONTROL_STORE_BITS);
+            NEXT_LATCHES.EXCV = 0x0003;
+            NEXT_LATCHES.EXC = 1;
+        }
+        else{
+            NEXT_LATCHES.VA = BUS;
+        }
    }
 }

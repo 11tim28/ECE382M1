@@ -1,4 +1,6 @@
-		.ORIG x3000                                      
+		.ORIG x3000        
+		LEA R6, USP
+		LDW R6, R6, #0                  
 		AND R1, R1, #0                                          
 		ADD R1, R1, #10		; R1 = 10
 		ADD R1, R1, #10		; R1 = 20								; S18(45)
@@ -16,7 +18,7 @@ Loop	LDB R2, R0, #0												; S18(152)	; S18(282) -> S18(323)[INT] 	; S18(229
 		; ---------------------------------------------------S18(25310)---------------------------------------------------
 
 		; Test protection exception
-		; JMP R3														; S18(25310)
+		JMP R3														; S18(25310)
 
 		; Test page fault
 		; LEA R0, PF
@@ -35,6 +37,7 @@ Loop	LDB R2, R0, #0												; S18(152)	; S18(282) -> S18(323)[INT] 	; S18(229
 
 Loc		.FILL xC000
 PF		.FILL x5000
+USP		.FILL xFE00
 		.END
 
 																	; END(25442)

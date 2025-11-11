@@ -395,9 +395,14 @@ Memory content [0x1000..0x10fe] :
  0x10fe (4350) : 0x0008
 
 
+Memory content [0x3814..0x3814] :
+-------------------------------------
+ 0x3814 (14356) : 0x0052
+
+
 Current register/bus values :
 -------------------------------------
-Cycle Count  : 25442
+Cycle Count  : 25505
 PC           : 0x0000
 IR           : 0xf025
 STATE_NUMBER : 0x0012
@@ -415,9 +420,4 @@ Registers:
 5: 0x0000
 6: 0x2ffc
 7: 0x1602
-
-
-Memory content [0x3814..0x3814] :
--------------------------------------
- 0x3814 (14356) : 0x0052
 
